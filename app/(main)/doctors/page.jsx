@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { SPECIALTIES } from "@/lib/specialities";
 
-export default async function DoctorsPage() {
+export default function DoctorsPage() {
   return (
     <>
       <div className="flex flex-col items-center justify-center mb-8 text-center">

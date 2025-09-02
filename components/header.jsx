@@ -7,7 +7,7 @@ import { Button } from './ui/button'
 import { ShieldCheck, Stethoscope, Calendar, User, CreditCard } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { checkUser } from "@/lib/checkUser";
-
+import { checkAndAllocateCredits } from "@/actions/credits";
 export default async function Header() {
   const user = await checkUser();
   if (user?.role === "PATIENT") {
