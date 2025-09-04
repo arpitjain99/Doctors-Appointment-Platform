@@ -20,7 +20,7 @@ export default async function Header() {
         <Link href="/" className="flex items-center gap-2 cursor-pointer group">
           <Image
             src="/logo-single.png"
-            alt="MediMeet Logo"
+            alt="MedSync Logo"
             width={200}
             height={60}
             className="h-10 w-auto object-contain group-hover:scale-105 transition-transform duration-200"

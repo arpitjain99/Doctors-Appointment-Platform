@@ -14,6 +14,9 @@ const inter = Inter({
 
 export const metadata = {
   title: "MedSync - Connect with Doctors Anytime, Anywhere",
+  icons: {
+    icon: "public/favicon.ico",  // replace with your logo file in public/
+  },
   description: "Book appointments, consult via video, and manage your healthcare journey with verified doctors on our secure platform.",
   keywords: "doctor appointment, telemedicine, video consultation, healthcare, medical appointments",
   authors: [{ name: "Arpit Jain" }],
