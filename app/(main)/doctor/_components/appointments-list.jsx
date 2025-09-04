@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { getDoctorAppointments } from "@/actions/doctor";
 import { AppointmentCard } from "@/components/appointment-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,14 +8,15 @@ import { Calendar } from "lucide-react";
 import useFetch from "@/hooks/use-fetch";
 
 export default function DoctorAppointmentsList() {
-  const {
-    loading,
-    data,
-    fn: fetchAppointments,
-  } = useFetch(getDoctorAppointments);
+  const { loading, data, fn: fetchAppointments } = useFetch(getDoctorAppointments);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     fetchAppointments();
+    // Intentionally empty deps to avoid re-fetch loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const appointments = data?.appointments || [];
@@ -51,8 +52,7 @@ export default function DoctorAppointmentsList() {
               No upcoming appointments
             </h3>
             <p className="text-muted-foreground">
-              You don&apos;t have any scheduled appointments yet. Make sure
-              you&apos;ve set your availability to allow patients to book.
+              You don&apos;t have any scheduled appointments yet.
             </p>
           </div>
         )}

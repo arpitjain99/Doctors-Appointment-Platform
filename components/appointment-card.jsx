@@ -5,6 +5,15 @@ import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Calendar,
   Clock,
@@ -16,89 +25,57 @@ import {
   Loader2,
   CheckCircle,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import useFetch from "@/hooks/use-fetch";
 import {
   cancelAppointment,
   addAppointmentNotes,
   markAppointmentCompleted,
 } from "@/actions/doctor";
-import { generateVideoToken } from "@/actions/appointments";
-import useFetch from "@/hooks/use-fetch";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
-export function AppointmentCard({
-  appointment,
-  userRole,
-  refetchAppointments,
-}) {
+export function AppointmentCard({ appointment, userRole, refetchAppointments }) {
   const [open, setOpen] = useState(false);
-  const [action, setAction] = useState(null); // 'cancel', 'notes', 'video', or 'complete'
+  const [action, setAction] = useState(null); // 'cancel' | 'notes' | 'complete'
   const [notes, setNotes] = useState(appointment.notes || "");
   const router = useRouter();
 
-  // UseFetch hooks for server actions
-  const {
-    loading: cancelLoading,
-    fn: submitCancel,
-    data: cancelData,
-  } = useFetch(cancelAppointment);
-  const {
-    loading: notesLoading,
-    fn: submitNotes,
-    data: notesData,
-  } = useFetch(addAppointmentNotes);
-  const {
-    loading: tokenLoading,
-    fn: submitTokenRequest,
-    data: tokenData,
-  } = useFetch(generateVideoToken);
+  // Server action hooks
+  const { loading: cancelLoading, fn: submitCancel, data: cancelData } =
+    useFetch(cancelAppointment);
+  const { loading: notesLoading, fn: submitNotes, data: notesData } =
+    useFetch(addAppointmentNotes);
   const {
     loading: completeLoading,
     fn: submitMarkCompleted,
     data: completeData,
   } = useFetch(markAppointmentCompleted);
 
-  // Format date and time
   const formatDateTime = (dateString) => {
     try {
       return format(new Date(dateString), "MMMM d, yyyy 'at' h:mm a");
-    } catch (e) {
+    } catch {
       return "Invalid date";
     }
   };
 
-  // Format time only
   const formatTime = (dateString) => {
     try {
       return format(new Date(dateString), "h:mm a");
-    } catch (e) {
+    } catch {
       return "Invalid time";
     }
   };
 
-  // Check if appointment can be marked as completed
   const canMarkCompleted = () => {
-    if (userRole !== "DOCTOR" || appointment.status !== "SCHEDULED") {
-      return false;
-    }
+    if (userRole !== "DOCTOR" || appointment.status !== "SCHEDULED") return false;
     const now = new Date();
     const appointmentEndTime = new Date(appointment.endTime);
     return now >= appointmentEndTime;
   };
 
-  // Handle cancel appointment
   const handleCancelAppointment = async () => {
     if (cancelLoading) return;
-
     if (
       window.confirm(
         "Are you sure you want to cancel this appointment? This action cannot be undone."
@@ -110,18 +87,13 @@ export function AppointmentCard({
     }
   };
 
-  // Handle mark as completed
   const handleMarkCompleted = async () => {
     if (completeLoading) return;
 
-    // Check if appointment end time has passed
     const now = new Date();
     const appointmentEndTime = new Date(appointment.endTime);
-
     if (now < appointmentEndTime) {
-      alert(
-        "Cannot mark appointment as completed before the scheduled end time."
-      );
+      alert("Cannot mark appointment as completed before the scheduled end time.");
       return;
     }
 
@@ -136,37 +108,36 @@ export function AppointmentCard({
     }
   };
 
-  // Handle save notes (doctor only)
   const handleSaveNotes = async () => {
     if (notesLoading || userRole !== "DOCTOR") return;
-
     const formData = new FormData();
     formData.append("appointmentId", appointment.id);
     formData.append("notes", notes);
     await submitNotes(formData);
   };
 
-  // Handle join video call
-  const handleJoinVideoCall = async () => {
-    if (tokenLoading) return;
+  // Join video call by pushing roomId to the video-call route (no token needed)
+  const handleJoinVideoCall = () => {
+    const roomId =
+      appointment.videoRoomId ||
+      appointment.sessionId ||
+      appointment.videoSessionId ||
+      appointment.roomId ||
+      appointment.id;
 
-    setAction("video");
-
-    const formData = new FormData();
-    formData.append("appointmentId", appointment.id);
-    await submitTokenRequest(formData);
+    if (!roomId) {
+      toast.error("No room ID available for this appointment.");
+      return;
+    }
+    router.push(`/video-call?roomId=${encodeURIComponent(roomId)}`);
   };
 
-  // Handle successful operations
   useEffect(() => {
     if (cancelData?.success) {
       toast.success("Appointment cancelled successfully");
       setOpen(false);
-      if (refetchAppointments) {
-        refetchAppointments();
-      } else {
-        router.refresh();
-      }
+      if (refetchAppointments) refetchAppointments();
+      else router.refresh();
     }
   }, [cancelData, refetchAppointments, router]);
 
@@ -174,11 +145,8 @@ export function AppointmentCard({
     if (completeData?.success) {
       toast.success("Appointment marked as completed");
       setOpen(false);
-      if (refetchAppointments) {
-        refetchAppointments();
-      } else {
-        router.refresh();
-      }
+      if (refetchAppointments) refetchAppointments();
+      else router.refresh();
     }
   }, [completeData, refetchAppointments, router]);
 
@@ -186,43 +154,22 @@ export function AppointmentCard({
     if (notesData?.success) {
       toast.success("Notes saved successfully");
       setAction(null);
-      if (refetchAppointments) {
-        refetchAppointments();
-      } else {
-        router.refresh();
-      }
+      if (refetchAppointments) refetchAppointments();
+      else router.refresh();
     }
   }, [notesData, refetchAppointments, router]);
 
-  useEffect(() => {
-    if (tokenData?.success) {
-      // Redirect to video call page with token and session ID
-      router.push(
-        `/video-call?sessionId=${tokenData.videoSessionId}&token=${tokenData.token}&appointmentId=${appointment.id}`
-      );
-    } else if (tokenData?.error) {
-      setAction(null);
-    }
-  }, [tokenData, appointment.id, router]);
-
-  // Determine if appointment is active (within 30 minutes of start time)
   const isAppointmentActive = () => {
     const now = new Date();
     const appointmentTime = new Date(appointment.startTime);
     const appointmentEndTime = new Date(appointment.endTime);
-
-    // Can join 30 minutes before start until end time
     return (
-      (appointmentTime.getTime() - now.getTime() <= 30 * 60 * 1000 &&
-        now < appointmentTime) ||
+      (appointmentTime.getTime() - now.getTime() <= 30 * 60 * 1000 && now < appointmentTime) ||
       (now >= appointmentTime && now <= appointmentEndTime)
     );
   };
 
-  // Determine other party information based on user role
-  const otherParty =
-    userRole === "DOCTOR" ? appointment.patient : appointment.doctor;
-
+  const otherParty = userRole === "DOCTOR" ? appointment.patient : appointment.doctor;
   const otherPartyLabel = userRole === "DOCTOR" ? "Patient" : "Doctor";
   const otherPartyIcon = userRole === "DOCTOR" ? <User /> : <Stethoscope />;
 
@@ -232,24 +179,16 @@ export function AppointmentCard({
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="bg-muted/20 rounded-full p-2 mt-1">
-                {otherPartyIcon}
-              </div>
+              <div className="bg-muted/20 rounded-full p-2 mt-1">{otherPartyIcon}</div>
               <div>
                 <h3 className="font-medium text-white">
-                  {userRole === "DOCTOR"
-                    ? otherParty.name
-                    : `Dr. ${otherParty.name}`}
+                  {userRole === "DOCTOR" ? otherParty.name : `Dr. ${otherParty.name}`}
                 </h3>
                 {userRole === "DOCTOR" && (
-                  <p className="text-sm text-muted-foreground">
-                    {otherParty.email}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{otherParty.email}</p>
                 )}
                 {userRole === "PATIENT" && (
-                  <p className="text-sm text-muted-foreground">
-                    {otherParty.specialty}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{otherParty.specialty}</p>
                 )}
                 <div className="flex items-center mt-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4 mr-1" />
@@ -258,12 +197,12 @@ export function AppointmentCard({
                 <div className="flex items-center mt-1 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4 mr-1" />
                   <span>
-                    {formatTime(appointment.startTime)} -{" "}
-                    {formatTime(appointment.endTime)}
+                    {formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}
                   </span>
                 </div>
               </div>
             </div>
+
             <div className="flex flex-col gap-2 self-end md:self-start">
               <Badge
                 variant="outline"
@@ -309,7 +248,6 @@ export function AppointmentCard({
         </CardContent>
       </Card>
 
-      {/* Appointment Details Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -324,52 +262,37 @@ export function AppointmentCard({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Other Party Information */}
+            {/* Other Party */}
             <div className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground">
-                {otherPartyLabel}
-              </h4>
+              <h4 className="text-sm font-medium text-muted-foreground">{otherPartyLabel}</h4>
               <div className="flex items-center">
-                <div className="h-5 w-5 text-emerald-400 mr-2">
-                  {otherPartyIcon}
-                </div>
+                <div className="h-5 w-5 text-emerald-400 mr-2">{otherPartyIcon}</div>
                 <div>
                   <p className="text-white font-medium">
-                    {userRole === "DOCTOR"
-                      ? otherParty.name
-                      : `Dr. ${otherParty.name}`}
+                    {userRole === "DOCTOR" ? otherParty.name : `Dr. ${otherParty.name}`}
                   </p>
                   {userRole === "DOCTOR" && (
-                    <p className="text-muted-foreground text-sm">
-                      {otherParty.email}
-                    </p>
+                    <p className="text-muted-foreground text-sm">{otherParty.email}</p>
                   )}
                   {userRole === "PATIENT" && (
-                    <p className="text-muted-foreground text-sm">
-                      {otherParty.specialty}
-                    </p>
+                    <p className="text-muted-foreground text-sm">{otherParty.specialty}</p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Appointment Time */}
+            {/* Time */}
             <div className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground">
-                Scheduled Time
-              </h4>
+              <h4 className="text-sm font-medium text-muted-foreground">Scheduled Time</h4>
               <div className="flex flex-col gap-1">
                 <div className="flex items-center">
                   <Calendar className="h-5 w-5 text-emerald-400 mr-2" />
-                  <p className="text-white">
-                    {formatDateTime(appointment.startTime)}
-                  </p>
+                  <p className="text-white">{formatDateTime(appointment.startTime)}</p>
                 </div>
                 <div className="flex items-center">
                   <Clock className="h-5 w-5 text-emerald-400 mr-2" />
                   <p className="text-white">
-                    {formatTime(appointment.startTime)} -{" "}
-                    {formatTime(appointment.endTime)}
+                    {formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}
                   </p>
                 </div>
               </div>
@@ -377,9 +300,7 @@ export function AppointmentCard({
 
             {/* Status */}
             <div className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground">
-                Status
-              </h4>
+              <h4 className="text-sm font-medium text-muted-foreground">Status</h4>
               <Badge
                 variant="outline"
                 className={
@@ -398,9 +319,7 @@ export function AppointmentCard({
             {appointment.patientDescription && (
               <div className="space-y-2">
                 <h4 className="text-sm font-medium text-muted-foreground">
-                  {userRole === "DOCTOR"
-                    ? "Patient Description"
-                    : "Your Description"}
+                  {userRole === "DOCTOR" ? "Patient Description" : "Your Description"}
                 </h4>
                 <div className="p-3 rounded-md bg-muted/20 border border-emerald-900/20">
                   <p className="text-white whitespace-pre-line">
@@ -410,42 +329,27 @@ export function AppointmentCard({
               </div>
             )}
 
-            {/* Join Video Call Button */}
+            {/* Join Video Call */}
             {appointment.status === "SCHEDULED" && (
               <div className="space-y-2">
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Video Consultation
-                </h4>
+                <h4 className="text-sm font-medium text-muted-foreground">Video Consultation</h4>
                 <Button
                   className="w-full bg-emerald-600 hover:bg-emerald-700"
-                  disabled={
-                    !isAppointmentActive() || action === "video" || tokenLoading
-                  }
+                  disabled={!isAppointmentActive()}
                   onClick={handleJoinVideoCall}
                 >
-                  {tokenLoading || action === "video" ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Preparing Video Call...
-                    </>
-                  ) : (
-                    <>
-                      <Video className="h-4 w-4 mr-2" />
-                      {isAppointmentActive()
-                        ? "Join Video Call"
-                        : "Video call will be available 30 minutes before appointment"}
-                    </>
-                  )}
+                  <Video className="h-4 w-4 mr-2" />
+                  {isAppointmentActive()
+                    ? "Join Video Call"
+                    : "Video call will be available 30 minutes before appointment"}
                 </Button>
               </div>
             )}
 
-            {/* Doctor Notes (Doctor can view/edit, Patient can only view) */}
+            {/* Doctor Notes */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Doctor Notes
-                </h4>
+                <h4 className="text-sm font-medium text-muted-foreground">Doctor Notes</h4>
                 {userRole === "DOCTOR" &&
                   action !== "notes" &&
                   appointment.status !== "CANCELLED" && (
@@ -503,13 +407,9 @@ export function AppointmentCard({
               ) : (
                 <div className="p-3 rounded-md bg-muted/20 border border-emerald-900/20 min-h-[80px]">
                   {appointment.notes ? (
-                    <p className="text-white whitespace-pre-line">
-                      {appointment.notes}
-                    </p>
+                    <p className="text-white whitespace-pre-line">{appointment.notes}</p>
                   ) : (
-                    <p className="text-muted-foreground italic">
-                      No notes added yet
-                    </p>
+                    <p className="text-muted-foreground italic">No notes added yet</p>
                   )}
                 </div>
               )}
@@ -518,7 +418,6 @@ export function AppointmentCard({
 
           <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
             <div className="flex gap-2">
-              {/* Mark as Complete Button - Only for doctors */}
               {canMarkCompleted() && (
                 <Button
                   onClick={handleMarkCompleted}
@@ -539,7 +438,6 @@ export function AppointmentCard({
                 </Button>
               )}
 
-              {/* Cancel Button - For scheduled appointments */}
               {appointment.status === "SCHEDULED" && (
                 <Button
                   variant="outline"
@@ -562,10 +460,7 @@ export function AppointmentCard({
               )}
             </div>
 
-            <Button
-              onClick={() => setOpen(false)}
-              className="bg-emerald-600 hover:bg-emerald-700"
-            >
+            <Button onClick={() => setOpen(false)} className="bg-emerald-600 hover:bg-emerald-700">
               Close
             </Button>
           </DialogFooter>
