@@ -24,7 +24,7 @@ export default async function PatientAppointmentsPage() {
         backLabel="Find Doctors"
       />
 
-      <Card className="border-emerald-900/20">
+      <Card className="border-emerald-900/20 glass-card">
         <CardHeader>
           <CardTitle className="text-xl font-bold text-white flex items-center">
             <Calendar className="h-5 w-5 mr-2 text-emerald-400" />
@@ -33,26 +33,36 @@ export default async function PatientAppointmentsPage() {
         </CardHeader>
         <CardContent>
           {error ? (
-            <div className="text-center py-8">
-              <p className="text-red-400">Error: {error}</p>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 mx-auto bg-red-900/20 rounded-full flex items-center justify-center mb-4">
+                <Calendar className="h-8 w-8 text-red-400" />
+              </div>
+              <p className="text-red-400 text-lg font-medium">Error: {error}</p>
             </div>
           ) : appointments?.length > 0 ? (
-            <div className="space-y-4">
-              {appointments.map((appointment) => (
-                <AppointmentCard
+            <div className="space-y-6">
+              {appointments.map((appointment, index) => (
+                <div 
                   key={appointment.id}
-                  appointment={appointment}
-                  userRole="PATIENT"
-                />
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <AppointmentCard
+                    appointment={appointment}
+                    userRole="PATIENT"
+                  />
+                </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-              <h3 className="text-xl font-medium text-white mb-2">
+            <div className="text-center py-12">
+              <div className="w-20 h-20 mx-auto bg-emerald-900/20 rounded-full flex items-center justify-center mb-6">
+                <Calendar className="h-10 w-10 text-emerald-400" />
+              </div>
+              <h3 className="text-2xl font-semibold text-white mb-3">
                 No appointments scheduled
               </h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-lg max-w-md mx-auto leading-relaxed">
                 You don&apos;t have any appointments scheduled yet. Browse our
                 doctors and book your first consultation.
               </p>
